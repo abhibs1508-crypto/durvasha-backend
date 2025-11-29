@@ -41,4 +41,11 @@ use HasFactory;
     protected $casts = [
         'status' => 'boolean',
     ];
+     public function getImageAttribute($value)
+    {
+        if (!$value) return null;
+
+        // make URL like: http://127.0.0.1:8000/storage/blogs/about5.jpeg
+        return asset('storage/' . $value);
+    }
 }
