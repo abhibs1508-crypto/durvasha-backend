@@ -5,15 +5,20 @@ namespace App\Http\Controllers;
 use App\Models\Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class ServiceController extends Controller
 {
-    /**
-     * Display all services
-     */
+    // Display all services
     public function index()
     {
         $services = Service::latest()->get();
+
+        // Add full image URL for frontend
+        $services->map(function ($service) {
+            $service->image_url = url('storage/' . $service->image);
+            return $service;
+        });
 
         return response()->json([
             'status' => true,
@@ -21,9 +26,7 @@ class ServiceController extends Controller
         ]);
     }
 
-    /**
-     * Store a new service
-     */
+    // Store new service
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -35,54 +38,35 @@ class ServiceController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'status' => false,
-                'errors' => $validator->errors(),
-            ], 422);
+            return response()->json(['status' => false, 'errors' => $validator->errors()], 422);
         }
 
-        $service = Service::create($validator->validated());
+        $data = $validator->validated();
+        $data['slug'] = Str::slug($data['title']); // create slug from title
+        $service = Service::create($data);
 
-        return response()->json([
-            'status' => true,
-            'message' => 'Service created successfully',
-            'data' => $service,
-        ]);
+        return response()->json(['status' => true, 'message' => 'Service created', 'data' => $service]);
     }
 
-    /**
-     * Display a single service
-     */
-    public function show($id)
+    // Display single service by **slug**
+    public function show($slug)
     {
-        $service = Service::find($id);
+        $service = Service::where('slug', $slug)->first();
 
         if (!$service) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Service not found',
-            ], 404);
+            return response()->json(['status' => false, 'message' => 'Service not found'], 404);
         }
 
-        return response()->json([
-            'status' => true,
-            'data' => $service,
-        ]);
+        $service->image_url = url('storage/' . $service->image); // full image URL
+
+        return response()->json(['status' => true, 'data' => $service]);
     }
 
-    /**
-     * Update a service
-     */
+    // Update service
     public function update(Request $request, $id)
     {
         $service = Service::find($id);
-
-        if (!$service) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Service not found',
-            ], 404);
-        }
+        if (!$service) return response()->json(['status' => false, 'message' => 'Service not found'], 404);
 
         $validator = Validator::make($request->all(), [
             'title' => 'sometimes|string|max:255',
@@ -92,41 +76,23 @@ class ServiceController extends Controller
             'status' => 'sometimes|boolean',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => false,
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+        if ($validator->fails()) return response()->json(['status' => false, 'errors' => $validator->errors()], 422);
 
-        $service->update($validator->validated());
+        $data = $validator->validated();
+        if (isset($data['title'])) $data['slug'] = Str::slug($data['title']); // update slug
 
-        return response()->json([
-            'status' => true,
-            'message' => 'Service updated successfully',
-            'data' => $service,
-        ]);
+        $service->update($data);
+
+        return response()->json(['status' => true, 'message' => 'Service updated', 'data' => $service]);
     }
 
-    /**
-     * Delete a service
-     */
+    // Delete service
     public function destroy($id)
     {
         $service = Service::find($id);
-
-        if (!$service) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Service not found',
-            ], 404);
-        }
+        if (!$service) return response()->json(['status' => false, 'message' => 'Service not found'], 404);
 
         $service->delete();
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Service deleted successfully',
-        ]);
+        return response()->json(['status' => true, 'message' => 'Service deleted']);
     }
 }
